@@ -1,11 +1,13 @@
 pub mod treap;
-use crate::treap::Node;
+use crate::treap::Treap;
 fn main() {
-    let mut root: Node = Node::new(0);
-    for i in 0..1000000 {
-        root.insert(Node::new(i));
-        root.contains(0);
-        root.contains(0);
-        root.contains(0);
+    let mut tree = Treap::new();
+    let n: i32 = 20;
+    for i in 0..n {
+        tree.insert(i);
+        tree.insert(i);
+    }
+    for i in 0..n / 2 {
+        tree.delete(i);
     }
 }
