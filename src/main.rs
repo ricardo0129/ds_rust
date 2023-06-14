@@ -1,9 +1,7 @@
 use rand::Rng;
-use std::cell::RefCell;
-use std::collections::BTreeSet;
-use std::f64::INFINITY;
-use std::mem::swap;
-use std::rc::Rc;
+use std::collections::{BTreeSet, HashSet};
+use std::mem;
+use std::mem::{swap, take};
 
 struct Node {
     key: i32,
@@ -19,7 +17,7 @@ impl Node {
     fn new(key: i32) -> Self {
         Self {
             key: key,
-            priority: rand::thread_rng().gen_range(0..1000000000),
+            priority: rand::thread_rng().gen_range(0..i32::MAX),
             left: None,
             subtree: 1,
             sum: key,
@@ -63,7 +61,7 @@ impl Node {
 
             child.inorder(depth + 1);
         }
-        //println!("{}", depth);
+        println!("{}", self.key);
         if let Some(child) = &self.right {
             // assert!(self.priority < child.priority);
             // assert!(self.key <= child.key);
@@ -98,54 +96,103 @@ impl Node {
         }
     }
 
-    fn delete(&mut self, key: i32) {
+    fn increase_priority(&mut self, key: i32) {
         if self.key == key {
             self.priority = i32::MAX;
             let mut iter = 20;
-            while self.left.is_some() || self.right.is_some() {
-                let left = &self.left;
-                let right = &self.right;
+            let mut root: &mut Node = self;
+            while root.left.is_some() || root.right.is_some() {
+                let left = &root.left;
+                let right = &root.right;
                 if right.is_none()
                     || (left.is_some()
                         && left.as_ref().unwrap().priority < right.as_ref().unwrap().priority)
                 {
-                    self.left.as_mut().unwrap().right_rotate();
+                    root.right_rotate();
+                    root = root.right.as_mut().unwrap();
                 } else {
-                    self.right.as_mut().unwrap().left_rotate();
-                }
-                iter -= 1;
-                if iter == 0 {
-                    break;
+                    root.left_rotate();
+                    root = root.left.as_mut().unwrap();
                 }
             }
         } else if self.key > key {
             if let Some(left) = &mut self.left {
-                left.delete(key);
+                left.increase_priority(key);
             }
         } else {
             if let Some(right) = &mut self.right {
-                right.delete(key);
+                right.increase_priority(key);
             }
         }
     }
 
-    fn split(&mut self, left: i32) -> (Node, Node) {
-        (Node::new(0), Node::new(0))
+    fn delete(&mut self, key: i32) -> bool {
+        self.increase_priority(key);
+        if self.key == key {
+            //The root needs to be removed
+            return false;
+        } else {
+            self.delete_leaf(key);
+        }
+        return true;
     }
 
-    fn merge() {}
+    fn delete_leaf(&mut self, key: i32) {
+        if self.key > key {
+            if self.left.as_mut().unwrap().key == key {
+                let root = self.left.take();
+            } else {
+                self.left.as_mut().unwrap().delete_leaf(key);
+            }
+        } else if self.key < key {
+            if self.right.as_mut().unwrap().key == key {
+                let root = self.right.take();
+            } else {
+                self.right.as_mut().unwrap().delete_leaf(key);
+            }
+        }
+    }
+
+    fn split(&mut self, key: i32) -> (Node, Node) {
+        let mut fake_node = Node::new(key);
+        fake_node.priority = i32::MIN;
+        self.insert(fake_node);
+        let left = *self.left.take().unwrap();
+        let right = *self.right.take().unwrap();
+        self.delete(key);
+        (left, right)
+    }
+
+    fn merge(left: Node, right: Node) -> Node {
+        let mut fake_node = Node::new(i32::MIN);
+        fake_node.insert(left);
+        fake_node.insert(right);
+        fake_node.delete(i32::MIN);
+        fake_node
+    }
+
+    fn contains(&self, key: i32) -> bool {
+        if self.key == key {
+            return true;
+        } else if self.key < key {
+            if let Some(child) = &self.right {
+                return child.contains(key);
+            }
+        } else {
+            if let Some(child) = &self.left {
+                return child.contains(key);
+            }
+        }
+        return false;
+    }
 }
 
 fn main() {
     let mut root: Node = Node::new(0);
-
-    for i in 0..10 {
-        let new_node = Node::new(i);
-        root.insert(new_node);
+    for i in 0..1000000 {
+        root.insert(Node::new(i));
+        root.contains(0);
+        root.contains(0);
+        root.contains(0);
     }
-    root.inorder(0);
-    println!("-----------");
-    root.delete(0);
-    //root.right_rotate();
-    //root.inorder(0);
 }
