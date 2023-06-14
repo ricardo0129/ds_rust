@@ -6,6 +6,6 @@ Mainly creating this to improve my rust skills
 ### TODO
 
 - TREAP
-    - In progress
+    - Insert, Delete, Merge, Split Completed
 - Splay Tree
 - Link Cut Tree
