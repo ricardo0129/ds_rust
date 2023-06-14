@@ -1,0 +1,3 @@
+struct splay {}
+
+impl splay {}
