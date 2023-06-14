@@ -1,0 +1,96 @@
+use rand::Rng;
+use std::cell::RefCell;
+use std::mem::swap;
+use std::rc::Rc;
+
+struct Node {
+    key: i32,
+    priority: i32,
+    left: Option<Box<Node>>,
+    right: Option<Box<Node>>,
+    subtree: i32,
+    sum: i32,
+    toProp: i32,
+}
+
+impl Node {
+    fn new(key: i32) -> Self {
+        Self {
+            key: key,
+            priority: rand::thread_rng().gen_range(0..1000000000),
+            left: None,
+            subtree: 1,
+            sum: key,
+            toProp: 0,
+            right: None,
+        }
+    }
+
+    fn insert(&mut self, v: Node) {
+        if v.key < self.key {
+            if let Some(child) = &mut self.left {
+                child.insert(v);
+            } else {
+                self.left = Some(Box::from(v));
+            }
+        } else {
+            if let Some(child) = &mut self.right {
+                child.insert(v);
+            } else {
+                self.right = Some(Box::from(v));
+            }
+        }
+    }
+
+    fn remove(&mut self, value: &T) -> Option<T> {
+        if value < &self.value {
+            self.left.as_mut().and_then(|left| left.remove(value))
+        } else if value > &self.value {
+            self.right.as_mut().and_then(|right| right.remove(value))
+        } else {
+            if self.left.is_none() {
+                return self.right.take().map(|node| node.value);
+            } else if self.right.is_none() {
+                return self.left.take().map(|node| node.value);
+            }
+
+            let mut right_min = self.right.as_mut().unwrap();
+            let mut successor = right_min;
+            while let Some(left) = &mut successor.left {
+                successor = left;
+            }
+
+            mem::swap(&mut successor.value, &mut self.value);
+            right_min.remove(&successor.value)
+        }
+    }
+    fn inorder(&self) {
+        if let Some(child) = &self.left {
+            child.inorder();
+        }
+        println!("{}", self.key);
+        if let Some(child) = &self.right {
+            child.inorder();
+        }
+    }
+
+    fn split(&mut self, left: i32) -> (Node, Node) {
+        (Node::new(0), Node::new(0))
+    }
+
+    fn merge() {}
+}
+
+fn main() {
+    let mut root: Node = Node::new(10);
+    for i in 0..5 {
+        let new_node: Node = Node::new(i);
+        root.insert(new_node);
+    }
+    for i in 20..30 {
+        let new_node: Node = Node::new(i);
+        root.insert(new_node);
+    }
+    root.left_rotation();
+    root.inorder();
+}
