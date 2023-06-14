@@ -1,13 +1,8 @@
 pub mod treap;
 use crate::treap::Treap;
+use std::collections::{BTreeSet, HashSet};
 fn main() {
-    let mut tree = Treap::new();
-    let n: i32 = 20;
-    for i in 0..n {
-        tree.insert(i);
-        tree.insert(i);
-    }
-    for i in 0..n / 2 {
-        tree.delete(i);
-    }
+    let mut tree: Treap<i32> = Treap::new();
+    //let mut tree: BTreeSet<i32> = BTreeSet::new();
+    //let mut tree: HashSet<i32> = HashSet::new();
 }

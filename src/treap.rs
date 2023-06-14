@@ -1,30 +1,30 @@
 use rand::Rng;
 use std::mem::swap;
 
-pub struct Node {
-    key: i32,
+pub struct Node<T> {
+    key: T,
     priority: i32,
-    left: Option<Box<Node>>,
-    right: Option<Box<Node>>,
+    left: Option<Box<Node<T>>>,
+    right: Option<Box<Node<T>>>,
     subtree: i32,
     sum: i32,
     to_prop: i32,
 }
 
-impl Node {
-    pub fn new(key: i32) -> Self {
+impl<T: Ord + Default + Clone> Node<T> {
+    pub fn new(key: T) -> Self {
         Self {
             key: key,
             priority: rand::thread_rng().gen_range(0..i32::MAX),
             left: None,
             subtree: 1,
-            sum: key,
+            sum: 0,
             to_prop: 0,
             right: None,
         }
     }
 
-    pub fn insert(&mut self, v: Node) {
+    pub fn insert(&mut self, v: Node<T>) {
         if v.key == self.key {
             //Element already exists don't do anything
         } else if v.key < self.key {
@@ -41,6 +41,7 @@ impl Node {
             }
         }
 
+        self.recalc();
         if let Some(right) = &self.right {
             if right.priority < self.priority {
                 self.left_rotate();
@@ -54,15 +55,26 @@ impl Node {
         }
     }
 
-    pub fn inorder(&self, keys: &mut Vec<i32>) {
+    pub fn recalc(&mut self) {
+        let mut subsize: i32 = 1;
+        if let Some(left) = &self.left {
+            subsize += left.subtree;
+        }
+        if let Some(right) = &self.right {
+            subsize += right.subtree;
+        }
+        self.subtree = subsize;
+    }
+
+    pub fn inorder(&self, keys: &mut Vec<T>) {
         if let Some(child) = &self.left {
             assert!(self.priority < child.priority);
             assert!(self.key >= child.key);
 
             child.inorder(keys);
         }
-        //println!("{}", self.key);
-        keys.push(self.key);
+        println!("{}", self.subtree);
+        keys.push(self.key.clone());
         if let Some(child) = &self.right {
             assert!(self.priority < child.priority);
             assert!(self.key <= child.key);
@@ -71,19 +83,19 @@ impl Node {
         }
     }
 
-    fn first(&self) -> i32 {
+    fn first(&self) -> T {
         if let Some(left) = &self.left {
             return left.first();
         } else {
-            return self.key;
+            return self.key.clone();
         }
     }
 
-    fn last(&self) -> i32 {
+    fn last(&self) -> T {
         if let Some(right) = &self.right {
             return right.first();
         } else {
-            return self.key;
+            return self.key.clone();
         }
     }
 
@@ -98,6 +110,13 @@ impl Node {
                 left.right = c;
             }
         }
+        if let Some(left) = &mut self.left {
+            left.recalc();
+        }
+        if let Some(right) = &mut self.right {
+            right.recalc();
+        }
+        self.recalc();
     }
 
     fn right_rotate(&mut self) {
@@ -111,12 +130,19 @@ impl Node {
                 right.right = c;
             }
         }
+        if let Some(left) = &mut self.left {
+            left.recalc();
+        }
+        if let Some(right) = &mut self.right {
+            right.recalc();
+        }
+        self.recalc();
     }
 
-    fn increase_priority(&mut self, key: i32) {
-        if self.key == key {
+    fn increase_priority(&mut self, key: &T) {
+        if self.key == *key {
             self.priority = i32::MAX;
-            let mut root: &mut Node = self;
+            let mut root: &mut Node<T> = self;
             while root.left.is_some() || root.right.is_some() {
                 let left = &root.left;
                 let right = &root.right;
@@ -131,7 +157,7 @@ impl Node {
                     root = root.left.as_mut().unwrap();
                 }
             }
-        } else if self.key > key {
+        } else if self.key > *key {
             if let Some(left) = &mut self.left {
                 left.increase_priority(key);
             }
@@ -142,9 +168,9 @@ impl Node {
         }
     }
 
-    pub fn delete(&mut self, key: i32) -> bool {
+    pub fn delete(&mut self, key: &T) -> bool {
         self.increase_priority(key);
-        if self.key == key {
+        if self.key == *key {
             //The root needs to be removed
             return false;
         } else {
@@ -153,15 +179,15 @@ impl Node {
         return true;
     }
 
-    fn delete_leaf(&mut self, key: i32) {
-        if self.key > key {
-            if self.left.as_mut().unwrap().key == key {
+    fn delete_leaf(&mut self, key: &T) {
+        if self.key > *key {
+            if self.left.as_mut().unwrap().key == *key {
                 let _root = self.left.take();
             } else {
                 self.left.as_mut().unwrap().delete_leaf(key);
             }
-        } else if self.key < key {
-            if self.right.as_mut().unwrap().key == key {
+        } else if self.key < *key {
+            if self.right.as_mut().unwrap().key == *key {
                 let _root = self.right.take();
             } else {
                 self.right.as_mut().unwrap().delete_leaf(key);
@@ -169,8 +195,8 @@ impl Node {
         }
     }
 
-    pub fn split(&mut self, key: i32) -> (Node, Node) {
-        let mut fake_node = Node::new(key);
+    pub fn split(&mut self, key: &T) -> (Node<T>, Node<T>) {
+        let mut fake_node = Node::new(key.clone());
         fake_node.priority = i32::MIN;
         self.insert(fake_node);
         let left = *self.left.take().unwrap();
@@ -179,18 +205,18 @@ impl Node {
         (left, right)
     }
 
-    pub fn merge(left: Node, right: Node) -> Node {
-        let mut fake_node = Node::new(i32::MIN);
+    pub fn merge(left: Node<T>, right: Node<T>) -> Node<T> {
+        let mut fake_node = Node::new(T::default());
         fake_node.insert(left);
         fake_node.insert(right);
-        fake_node.delete(i32::MIN);
+        fake_node.delete(&T::default());
         fake_node
     }
 
-    pub fn contains(&self, key: i32) -> bool {
-        if self.key == key {
+    pub fn contains(&self, key: &T) -> bool {
+        if self.key == *key {
             return true;
-        } else if self.key < key {
+        } else if self.key < *key {
             if let Some(child) = &self.right {
                 return child.contains(key);
             }
@@ -201,19 +227,32 @@ impl Node {
         }
         return false;
     }
+
+    fn nth(&self, pos: i32) -> T {
+        let mut left_subtree = 0;
+        if let Some(left) = &self.left {
+            left_subtree += left.subtree;
+        }
+        if left_subtree == pos {
+            return self.key.clone();
+        } else if left_subtree > pos {
+            return self.left.as_ref().unwrap().nth(pos);
+        }
+        return self.right.as_ref().unwrap().nth(pos - left_subtree - 1);
+    }
 }
 
-pub struct Treap {
-    root: Option<Node>,
+pub struct Treap<T> {
+    root: Option<Node<T>>,
 }
 
-impl Treap {
+impl<T: Ord + Default + Clone> Treap<T> {
     pub fn new() -> Self {
         return Self { root: None };
     }
 
-    pub fn insert(&mut self, key: i32) {
-        let new_node: Node = Node::new(key);
+    pub fn insert(&mut self, key: T) {
+        let new_node: Node<T> = Node::new(key);
         if self.root.is_some() {
             self.root.as_mut().unwrap().insert(new_node);
         } else {
@@ -221,14 +260,14 @@ impl Treap {
         }
     }
 
-    pub fn contains(&mut self, key: i32) -> bool {
+    pub fn contains(&mut self, key: &T) -> bool {
         if self.root.is_some() {
             return self.root.as_ref().unwrap().contains(key);
         }
         return false;
     }
 
-    pub fn delete(&mut self, key: i32) {
+    pub fn delete(&mut self, key: &T) {
         if self.root.as_ref().unwrap().contains(key) {
             let is_deleted = self.root.as_mut().unwrap().delete(key);
             if !is_deleted {
@@ -237,23 +276,37 @@ impl Treap {
         }
     }
 
-    pub fn keys(&mut self) -> Vec<i32> {
-        let mut keys: Vec<i32> = vec![];
+    pub fn keys(&mut self) -> Vec<T> {
+        let mut keys: Vec<T> = vec![];
         self.root.as_ref().unwrap().inorder(&mut keys);
         return keys;
     }
 
-    pub fn first(&mut self) -> Option<i32> {
+    pub fn first(&mut self) -> Option<T> {
         if self.root.is_some() {
             return Some(self.root.as_ref().unwrap().first());
         }
         return None;
     }
 
-    pub fn last(&mut self) -> Option<i32> {
+    pub fn last(&mut self) -> Option<T> {
         if self.root.is_some() {
             return Some(self.root.as_ref().unwrap().last());
         }
         return None;
+    }
+
+    pub fn len(&self) -> usize {
+        if self.root.is_some() {
+            return self.root.as_ref().unwrap().subtree as usize;
+        }
+        0
+    }
+
+    pub fn nth(&self, pos: usize) -> Option<T> {
+        if self.root.is_none() || self.len() <= pos {
+            return None;
+        }
+        return Some(self.root.as_ref().unwrap().nth(pos as i32));
     }
 }
