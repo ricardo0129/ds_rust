@@ -8,4 +8,10 @@ Mainly creating this to improve my rust skills
 - TREAP
     - Insert, Delete, Merge, Split, nth Completed
 - Splay Tree
+    - Inprogress
 - Link Cut Tree
+    - Not started
+- Suffix Tree
+    - Not started
+- KD Tree
+    - Not started

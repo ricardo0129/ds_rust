@@ -1,3 +1,1 @@
-struct splay {}
-
-impl splay {}
+use std::cell::RefCell;

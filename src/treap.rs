@@ -310,3 +310,10 @@ impl<T: Ord + Default + Clone> Treap<T> {
         return Some(self.root.as_ref().unwrap().nth(pos as i32));
     }
 }
+
+pub fn test() {
+    let mut tree: Treap<i32> = Treap::new();
+    for i in 0..10000000 {
+        tree.insert(i);
+    }
+}
