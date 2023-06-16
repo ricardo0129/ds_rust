@@ -314,6 +314,7 @@ impl<T: Ord + Default + Clone> Treap<T> {
 pub fn test() {
     let mut tree: Treap<i32> = Treap::new();
     for i in 0..10000000 {
-        tree.insert(i);
+        let key = rand::thread_rng().gen_range(0..i32::MAX);
+        tree.insert(key);
     }
 }

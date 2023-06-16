@@ -1,10 +1,6 @@
 use rand::Rng;
-use std::cell::RefCell;
 use std::cmp::Ordering;
-use std::collections::VecDeque;
 use std::mem::swap;
-use std::rc::Rc;
-
 type Link = Option<Box<Node>>;
 
 pub struct Node {
@@ -35,39 +31,45 @@ impl Node {
     }
 
     fn insert(&mut self, key: i32) {
-        match key.cmp(&self.key) {
-            Ordering::Equal => {
-                //The Key ALREADY exists
-            }
-            Ordering::Less => {
-                //The Key is LESS than root
-                if let Some(left) = &mut self.left {
-                    left.insert(key);
-                } else {
-                    let v = Box::new(Node::new(key));
-                    self.add_left_child(v);
-                    if let Some(l) = &mut self.left {
-                        l.rebalance(true);
+        let mut root = self;
+        loop {
+            match key.cmp(&root.key) {
+                Ordering::Equal => {
+                    //The Key ALREADY exists
+                    break;
+                }
+                Ordering::Less => {
+                    //The Key is LESS than root
+                    if root.left.is_some() {
+                        //left.insert(key);
+                        root = root.left.as_mut().unwrap();
+                    } else {
+                        let v = Box::new(Node::new(key));
+                        root.add_left_child(v);
+                        if let Some(l) = &mut root.left {
+                            l.splay();
+                        }
+                        break;
                     }
                 }
-            }
-            Ordering::Greater => {
-                //The Key is MORE than root
-                if let Some(right) = &mut self.right {
-                    right.insert(key);
-                } else {
-                    let v = Box::new(Node::new(key));
-                    self.add_right_child(v);
-                    if let Some(r) = &mut self.right {
-                        r.rebalance(false);
+                Ordering::Greater => {
+                    //The Key is MORE than root
+                    if root.right.is_some() {
+                        root = root.right.as_mut().unwrap();
+                    } else {
+                        let v = Box::new(Node::new(key));
+                        root.add_right_child(v);
+                        if let Some(r) = &mut root.right {
+                            r.splay();
+                        }
+                        break;
                     }
                 }
             }
         }
     }
 
-    fn rebalance(&mut self, left: bool) {
-        let mut iter = 5;
+    fn splay(&mut self) {
         let actual_key = self.key;
         let mut root = self;
         loop {
@@ -77,21 +79,20 @@ impl Node {
             }
             if let Some(p) = &mut root.parent() {
                 let pk = p.key;
-                println!("parent {}", pk);
+                let left: bool;
+                if p.right.is_none() || (p.right.as_ref().unwrap().key != actual_key) {
+                    left = true;
+                } else {
+                    left = false;
+                }
                 if let Some(g) = &mut p.parent() {
-                    let b = g.right.is_none();
-                    println!("grand {}", g.key);
-                    let k = g.left.as_ref().unwrap().key;
-                    if b || (k == pk) {
+                    if g.right.is_none() || (g.right.as_ref().unwrap().key != pk) {
                         //grandparent -> left
                         if left {
-                            println!("case 1");
                             //left -> left
-                            g.zig_zig(false);
-                            root = root.parent().unwrap();
-                            root = root.parent().unwrap();
+                            g.zig_zig(true);
+                            root = root.parent().unwrap().parent().unwrap();
                         } else {
-                            println!("case 2");
                             //left -> right
                             g.zig_zag(true);
                             root = root.parent().unwrap();
@@ -100,24 +101,19 @@ impl Node {
                         //grandparent -> right
                         if left {
                             //right -> left
-                            println!("case 3");
                             g.zig_zag(false);
                             root = root.parent().unwrap();
                         } else {
                             //right -> right
-                            println!("case 4");
-                            g.zig_zig(true);
-                            root = root.parent().unwrap();
-                            root = root.parent().unwrap();
+                            g.zig_zig(false);
+                            root = root.parent().unwrap().parent().unwrap();
                         }
                     }
                 } else {
                     //only one parent just rotate once
                     if left {
-                        println!("case 5");
                         p.rotate_right();
                     } else {
-                        println!("case 6");
                         p.rotate_left();
                     }
                     root = root.parent().unwrap();
@@ -132,21 +128,19 @@ impl Node {
 
     fn zig_zag(&mut self, left: bool) {
         if left {
-            // left -> right
+            // left right
             let mut w = self.left.take();
             if let Some(w) = &mut w {
                 w.rotate_left();
             }
-            //self.left = w;
             self.add_left_child(w.unwrap());
             self.rotate_right();
         } else {
-            // right -> left
+            // right left
             let mut w = self.right.take();
             if let Some(w) = &mut w {
                 w.rotate_right();
             }
-            //self.right = w;
             self.add_right_child(w.unwrap());
             self.rotate_left();
         }
@@ -154,23 +148,36 @@ impl Node {
 
     fn zig_zig(&mut self, left: bool) {
         if left {
+            //left left
             let mut y = self.left.take();
             if let Some(y) = &mut y {
                 y.rotate_right();
             }
             self.add_left_child(y.unwrap());
             self.rotate_right();
+            let mut z = self.right.take();
+            if let Some(z) = &mut z {
+                z.rotate_right();
+            }
+            self.add_right_child(z.unwrap());
         } else {
+            //right right
             let mut y = self.right.take();
             if let Some(y) = &mut y {
                 y.rotate_left();
             }
             self.add_right_child(y.unwrap());
             self.rotate_left();
+            let mut z = self.left.take();
+            if let Some(z) = &mut z {
+                z.rotate_left();
+            }
+            self.add_left_child(z.unwrap());
         }
     }
-
-    //      U             V0
+    //      P             P
+    //      |             |
+    //      U             V
     //     / \           / \
     //    V  |C|  <=>  |A|  U
     //   / \               / \
@@ -181,12 +188,20 @@ impl Node {
         if let Some(mut u) = self.left.take() {
             let p = self.parent;
             swap(self, &mut *u);
-            self.parent = p;
             let b = self.right.take();
+            let a = self.left.take();
+            if a.is_some() {
+                self.add_left_child(a.unwrap());
+            }
             if b.is_some() {
                 u.add_left_child(b.unwrap());
             }
+            let c = u.right.take();
+            if c.is_some() {
+                u.add_right_child(c.unwrap());
+            }
             self.add_right_child(u);
+            self.parent = p;
         }
     }
 
@@ -196,10 +211,19 @@ impl Node {
             swap(self, &mut *v);
             self.parent = p;
             let b = self.left.take();
+            let c = self.right.take();
+            if c.is_some() {
+                self.add_right_child(c.unwrap());
+            }
             if b.is_some() {
                 v.add_right_child(b.unwrap());
             }
+            let a = v.left.take();
+            if a.is_some() {
+                v.add_left_child(a.unwrap());
+            }
             self.add_left_child(v);
+            self.parent = p;
         }
     }
 
@@ -209,25 +233,23 @@ impl Node {
         }
         let k = self.key;
         println!("key{} depth{}", self.key, depth);
+        if let Some(p) = self.parent() {
+            println!("    key {} parent {}", k, p.key);
+        }
         if let Some(right) = &mut self.right {
             right.inorder(depth + 1);
         }
     }
 }
 
-// mod treap;
-// use crate::treap::test;
+mod treap;
+use crate::treap::test;
+use std::collections::{BTreeSet, HashSet};
 fn main() {
-    // let mut root = Node::new(4);
-    // let adding = vec![7, 2, 3];
-    // for a in adding {
-    //     root.insert(a);
-    // }
-    let mut root = Node::new(1000);
-    for i in 2..100 {
+    let mut root = Node::new(0);
+
+    for i in 1..10000000 {
         let key = rand::thread_rng().gen_range(0..i32::MAX);
-        println!("insert {}", key);
         root.insert(key);
     }
-    root.inorder(0);
 }
